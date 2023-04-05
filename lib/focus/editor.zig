@@ -171,10 +171,18 @@ pub const Editor = struct {
                                 for (self.cursors.items) |*cursor| self.paste(cursor);
                                 self.clearMark();
                             },
-                            .j => for (self.cursors.items) |*cursor| self.goLeft(cursor),
-                            .l => for (self.cursors.items) |*cursor| self.goRight(cursor),
-                            .k => for (self.cursors.items) |*cursor| self.goWrappedDown(cursor),
-                            .i => for (self.cursors.items) |*cursor| self.goWrappedUp(cursor),
+                            .l => self.scrollPosToCenter(text_rect, self.cursors.getLast().head.pos),
+                            .end => {
+                                for (self.cursors.items) |*cursor| self.goBufferEnd(cursor);
+                                // hardcode because we want to scroll even if cursor didn't move
+                                const num_lines = self.line_wrapped_buffer.countLines();
+                                self.top_pixel = @intCast(u.Coord, if (num_lines == 0) 0 else num_lines - 1) * self.app.atlas.char_height;
+                            },
+                            .home => {
+                                for (self.cursors.items) |*cursor| self.goBufferStart(cursor);
+                                // hardcode because we want to scroll even if cursor didn't move
+                                self.top_pixel = 0;
+                            },
                             .q => {
                                 self.collapseCursors();
                                 self.clearMark();
@@ -216,19 +224,6 @@ pub const Editor = struct {
                     } else if (key_event.mods.alt) {
                         switch (key_event.key) {
                             .space => for (self.cursors.items) |*cursor| self.swapHead(cursor),
-                            .j => for (self.cursors.items) |*cursor| self.goRealLineStart(cursor),
-                            .l => for (self.cursors.items) |*cursor| self.goRealLineEnd(cursor),
-                            .k => {
-                                for (self.cursors.items) |*cursor| self.goBufferEnd(cursor);
-                                // hardcode because we want to scroll even if cursor didn't move
-                                const num_lines = self.line_wrapped_buffer.countLines();
-                                self.top_pixel = @intCast(u.Coord, if (num_lines == 0) 0 else num_lines - 1) * self.app.atlas.char_height;
-                            },
-                            .i => {
-                                for (self.cursors.items) |*cursor| self.goBufferStart(cursor);
-                                // hardcode because we want to scroll even if cursor didn't move
-                                self.top_pixel = 0;
-                            },
                             .slash => for (self.cursors.items) |*cursor| self.modifyComment(cursor, .Remove),
                             .g => {
                                 const project_dir = self.buffer.getProjectDir() orelse focus.config.projects_file_path;
@@ -249,6 +244,42 @@ pub const Editor = struct {
                     } else if (key_event.mods.shift) {
                         switch (key_event.key) {
                             .tab => completer_event = .Up,
+                            .left => {
+                                if (!self.marked) {
+                                    self.setMark();
+                                }
+                                for (self.cursors.items) |*cursor| self.goLeft(cursor);
+                            },
+                            .right => {
+                                if (!self.marked) {
+                                    self.setMark();
+                                }
+                                for (self.cursors.items) |*cursor| self.goRight(cursor);
+                            },
+                            .down => {
+                                if (!self.marked) {
+                                    self.setMark();
+                                }
+                                for (self.cursors.items) |*cursor| self.goWrappedDown(cursor);
+                            },
+                            .up => {
+                                if (!self.marked) {
+                                    self.setMark();
+                                }
+                                for (self.cursors.items) |*cursor| self.goWrappedUp(cursor);
+                            },
+                            .home => {
+                                if (!self.marked) {
+                                    self.setMark();
+                                }
+                                for (self.cursors.items) |*cursor| self.goRealLineStart(cursor);
+                            },
+                            .end => {
+                                if (!self.marked) {
+                                    self.setMark();
+                                }
+                                for (self.cursors.items) |*cursor| self.goRealLineEnd(cursor);
+                            },
                             else => {},
                         }
                     } else {
@@ -269,6 +300,54 @@ pub const Editor = struct {
                                 self.clearMark();
                             },
                             .tab => completer_event = .Down,
+                            .left => {
+                                if (self.marked) {
+                                    self.clearMark();
+                                }
+                                for (self.cursors.items) |*cursor| self.goLeft(cursor);
+                            },
+                            .right => {
+                                if (self.marked) {
+                                    self.clearMark();
+                                }
+                                for (self.cursors.items) |*cursor| self.goRight(cursor);
+                            },
+                            .down => {
+                                if (self.marked) {
+                                    self.clearMark();
+                                }
+                                for (self.cursors.items) |*cursor| self.goWrappedDown(cursor);
+                            },
+                            .page_down => {
+                                if (self.marked) {
+                                    self.clearMark();
+                                }
+                                for (self.cursors.items) |*cursor| for (0..15) |_| self.goWrappedDown(cursor);
+                            },
+                            .up => {
+                                if (self.marked) {
+                                    self.clearMark();
+                                }
+                                for (self.cursors.items) |*cursor| self.goWrappedUp(cursor);
+                            },
+                            .page_up => {
+                                if (self.marked) {
+                                    self.clearMark();
+                                }
+                                for (self.cursors.items) |*cursor| for (0..15) |_| self.goWrappedUp(cursor);
+                            },
+                            .home => {
+                                if (self.marked) {
+                                    self.clearMark();
+                                }
+                                for (self.cursors.items) |*cursor| self.goRealLineStart(cursor);
+                            },
+                            .end => {
+                                if (self.marked) {
+                                    self.clearMark();
+                                }
+                                for (self.cursors.items) |*cursor| self.goRealLineEnd(cursor);
+                            },
                             else => {},
                         }
                     }

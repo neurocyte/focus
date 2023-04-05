@@ -97,6 +97,12 @@ pub const Selector = struct {
                         }
                     } else {
                         switch (key_press_event.key) {
+                            .down => self.selected += 1,
+                            .up => if (self.selected != 0) {
+                                self.selected -= 1;
+                            },
+                            .end => self.selected = num_items - 1,
+                            .home => self.selected = 0,
                             .enter => if (num_items != 0) {
                                 action = .SelectOne;
                             },
